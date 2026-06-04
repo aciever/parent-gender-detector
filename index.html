@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>父母性别智能检测系统</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a1a;
+    color: #e0e0e0;
+    font-family: 'Courier New', 'Source Code Pro', 'Menlo', monospace;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 16px;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  #app {
+    background: #0d0d24;
+    border: 2px solid #6b3fa0;
+    border-radius: 16px;
+    padding: 24px 20px;
+    max-width: 420px;
+    width: 100%;
+    min-height: 560px;
+    box-shadow: 0 0 40px rgba(107, 63, 160, 0.3);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  #title {
+    color: #a978d9;
+    font-weight: bold;
+    font-size: 15px;
+    text-align: center;
+    line-height: 1.8;
+    margin-bottom: 16px;
+  }
+  #console {
+    width: 100%;
+    flex: 1;
+    font-size: 13px;
+    line-height: 1.7;
+    overflow-y: auto;
+    max-height: 400px;
+    padding: 4px 0;
+  }
+  .line { margin: 2px 0; animation: fadeIn 0.2s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  .line.purple { color: #a978d9; }
+  .line.cyan { color: #00bcd4; }
+  .line.blue { color: #5b9bd5; }
+  .line.yellow { color: #d4a843; }
+  .line.green { color: #4caf50; }
+  .line.red { color: #f44336; }
+  .line.bold { font-weight: bold; }
+  #input-area {
+    width: 100%;
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  #prompt-text {
+    font-size: 14px;
+    font-weight: bold;
+    color: #e0e0e0;
+    text-align: center;
+  }
+  .btn-row {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+  }
+  .btn-row button {
+    flex: 1;
+    max-width: 140px;
+    padding: 12px 16px;
+    font-size: 18px;
+    font-weight: bold;
+    border: 2px solid #6b3fa0;
+    border-radius: 12px;
+    background: #1a1a3a;
+    color: #e0e0e0;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+  .btn-row button:active {
+    background: #6b3fa0;
+    transform: scale(0.96);
+  }
+  input {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+    border: 2px solid #6b3fa0;
+    border-radius: 12px;
+    background: #1a1a3a;
+    color: #e0e0e0;
+    text-align: center;
+    font-family: inherit;
+    outline: none;
+  }
+  input:focus { border-color: #a978d9; }
+  #progress-bar {
+    width: 100%;
+    height: 8px;
+    background: #1a1a3a;
+    border-radius: 4px;
+    margin: 8px 0;
+    overflow: hidden;
+    display: none;
+  }
+  #progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #6b3fa0, #a978d9);
+    width: 0%;
+    transition: width 0.05s linear;
+  }
+  .hidden { display: none !important; }
+  .share-tip {
+    margin-top: 12px;
+    font-size: 11px;
+    color: #666;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="title"></div>
+  <div id="progress-bar"><div id="progress-fill"></div></div>
+  <div id="console"></div>
+  <div id="input-area"></div>
+  <div class="share-tip" id="share-tip"></div>
+</div>
+
+<script>
+(function() {
+  const $ = id => document.getElementById(id);
+  const title = $('title');
+  const consoleEl = $('console');
+  const inputArea = $('input-area');
+  const progressBar = $('progress-bar');
+  const progressFill = $('progress-fill');
+  const shareTip = $('share-tip');
+
+  let choice = null;
+  let name = null;
+
+  function showProgress(duration) {
+    return new Promise(resolve => {
+      progressBar.style.display = 'block';
+      progressFill.style.width = '0%';
+      let start = Date.now();
+      function tick() {
+        let elapsed = Date.now() - start;
+        let pct = Math.min((elapsed / duration) * 100, 100);
+        progressFill.style.width = pct + '%';
+        if (pct < 100) requestAnimationFrame(tick);
+        else { progressBar.style.display = 'none'; resolve(); }
+      }
+      requestAnimationFrame(tick);
+    });
+  }
+
+  function put(msg, cls = '') {
+    let div = document.createElement('div');
+    div.className = 'line ' + cls;
+    div.textContent = msg;
+    consoleEl.appendChild(div);
+    consoleEl.scrollTop = consoleEl.scrollHeight;
+  }
+
+  async function typeLine(msg, cls = '', delay = 30) {
+    for (let i = 0; i < msg.length; i++) {
+      let div = document.createElement('div');
+      div.className = 'line ' + cls;
+      div.textContent = msg.slice(0, i + 1);
+      consoleEl.appendChild(div);
+      consoleEl.scrollTop = consoleEl.scrollHeight;
+      await sleep(delay);
+      if (i < msg.length - 1) consoleEl.removeChild(consoleEl.lastChild);
+    }
+  }
+
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  async function run() {
+    // 清屏
+    consoleEl.innerHTML = '';
+    progressBar.style.display = 'none';
+    inputArea.innerHTML = '';
+
+    // 标题
+    put('+========================================+', 'purple');
+    put('|      [ 父母性别智能检测系统 ]          |', 'purple');
+    put('|   Parent Gender Detection System       |', 'purple');
+    put('+========================================+', 'purple');
+    put('');
+    put('>> 请选择要检测的对象...', 'cyan');
+    await sleep(400);
+
+    // 选择按钮
+    let promptDiv = document.createElement('div');
+    promptDiv.style.textAlign = 'center';
+    promptDiv.style.marginTop = '12px';
+    promptDiv.innerHTML = '<div style="font-weight:bold;margin-bottom:12px;">请选择要检测的对象：</div>';
+
+    let btnRow = document.createElement('div');
+    btnRow.className = 'btn-row';
+
+    let btnDad = document.createElement('button');
+    btnDad.textContent = '👨 爸爸';
+    btnDad.onclick = () => onChoice('1');
+    let btnMom = document.createElement('button');
+    btnMom.textContent = '👩 妈妈';
+    btnMom.onclick = () => onChoice('2');
+
+    btnRow.appendChild(btnDad);
+    btnRow.appendChild(btnMom);
+    promptDiv.appendChild(btnRow);
+    inputArea.appendChild(promptDiv);
+  }
+
+  async function onChoice(c) {
+    choice = c;
+    inputArea.innerHTML = '';
+
+    let label = choice === '1' ? '爸爸' : '妈妈';
+    let promptDiv = document.createElement('div');
+    promptDiv.innerHTML = `<div id="name-prompt" style="font-weight:bold;margin-bottom:8px;text-align:center;">请输入${label}的名字：</div>`;
+
+    let input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = `输入${label}的名字`;
+    input.maxLength = 20;
+    input.autocomplete = 'off';
+    input.id = 'name-input';
+
+    let confirmBtn = document.createElement('button');
+    confirmBtn.textContent = '确认检测';
+    confirmBtn.style.cssText = 'width:100%;padding:12px;margin-top:8px;font-size:16px;font-weight:bold;border:2px solid #6b3fa0;border-radius:12px;background:#1a1a3a;color:#e0e0e0;cursor:pointer;font-family:inherit;';
+
+    confirmBtn.onclick = () => {
+      let v = input.value.trim();
+      if (!v) { input.placeholder = '名字不能为空！'; input.focus(); return; }
+      name = v;
+      startAnalysis();
+    };
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') confirmBtn.click(); });
+
+    promptDiv.appendChild(input);
+    promptDiv.appendChild(confirmBtn);
+    inputArea.appendChild(promptDiv);
+    setTimeout(() => input.focus(), 200);
+  }
+
+  async function startAnalysis() {
+    inputArea.innerHTML = '';
+    let label = choice === '1' ? '父亲' : '母亲';
+
+    put('');
+    put('>> 正在连接云端 AI 推理引擎...', 'blue');
+    await showProgress(1500);
+
+    put(`  受检对象：${label} -- ${name}`, 'yellow');
+    put('');
+
+    put('>> 正在进行 DNA 深度分析...', 'yellow');
+    await showProgress(2000);
+    put('>> 正在调用生物特征识别模型...', 'yellow');
+    await showProgress(1500);
+    put('>> 正在校验 23 对染色体数据...', 'yellow');
+    await showProgress(1500);
+
+    put('');
+    put('>> 分析中，请稍候...', 'cyan');
+
+    let steps = [
+      '   |-- 比对 Y 染色体 SNP 位点...',
+      '   |-- 检测 SRY 基因表达水平...',
+      '   |-- 分析睾酮受体敏感度...',
+      '   |-- 扫描 X 染色体失活模式...',
+      '   |-- 评估雌激素信号通路...',
+      '   |-- 调用 Gemini-Ultra-7B 推理...',
+      '   |-- 综合置信度计算...',
+    ];
+    for (let s of steps) {
+      put(s, 'purple');
+      await sleep(400 + Math.random() * 600);
+    }
+
+    await sleep(800);
+    put('');
+    put('[OK] 分析完成！', 'green');
+    put('');
+    put('='.repeat(44), 'bold');
+    put('');
+
+    if (choice === '1') {
+      put(`  [Dad] ${name} (父亲) 的性别是：`, 'bold');
+      await sleep(600);
+      put('  男 [Male]', 'red');
+      put('     置信度: 100.00% | Y染色体: [✓] 已检出 | SRY基因: [✓] 阳性', '');
+      put('     是池钧昊爸爸', '');
+    } else {
+      put(`  [Mom] ${name} (母亲) 的性别是：`, 'bold');
+      await sleep(600);
+      put('  女 [Female]', 'blue');
+      put('     置信度: 100.00% | X染色体: [✓] 已检出 | 雌激素通路: [✓] 正常', '');
+      put('     李晨阳妈妈', '');
+    }
+
+    put('');
+    put('='.repeat(44), 'bold');
+    put('');
+
+    let remarks = [
+      '恭喜！检测结果与生物学常识完全一致！',
+      '天哪！这个结果太令人震惊了！（并没有）',
+      '本检测采用最先进的「众所周知」算法，准确率高达 100%！',
+      '恭喜你发现了生物学最基本的规律！',
+      '科学家花了几个世纪才搞明白的事，你一秒钟就知道了！',
+      '这个检测值得一篇 Nature 论文！（大概不行）',
+    ];
+    put(remarks[Math.floor(Math.random() * remarks.length)], 'green');
+    put('');
+    put(`  检测报告编号: PGD-${Math.floor(100000 + Math.random() * 900000)}`, 'purple');
+    put('  本报告仅供娱乐，但结论是认真的。', 'cyan');
+
+    // 再来一次按钮
+    let retryDiv = document.createElement('div');
+    retryDiv.style.marginTop = '16px';
+
+    let retryBtn = document.createElement('button');
+    retryBtn.textContent = '🔄 再来一次';
+    retryBtn.style.cssText = 'width:100%;padding:12px;font-size:16px;font-weight:bold;border:2px solid #a978d9;border-radius:12px;background:#1a1a3a;color:#e0e0e0;cursor:pointer;font-family:inherit;';
+    retryBtn.onclick = () => { choice = null; name = null; run(); };
+
+    retryDiv.appendChild(retryBtn);
+    inputArea.appendChild(retryDiv);
+
+  }
+
+  // 启动
+  run();
+})();
+</script>
+</body>
+</html>
