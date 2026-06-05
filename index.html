@@ -19,6 +19,9 @@
     padding: 16px;
     user-select: none;
     -webkit-user-select: none;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+    overflow-x: hidden;
   }
   #app {
     background: #0d0d24;
@@ -44,6 +47,7 @@
   #console {
     width: 100%;
     flex: 1;
+    min-height: 0;
     font-size: 13px;
     line-height: 1.7;
     overflow-y: auto;
@@ -91,6 +95,9 @@
     cursor: pointer;
     transition: all 0.2s;
     font-family: inherit;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
   }
   .btn-row button:active {
     background: #6b3fa0;
@@ -107,6 +114,9 @@
     text-align: center;
     font-family: inherit;
     outline: none;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-appearance: none;
   }
   input:focus { border-color: #a978d9; }
   #progress-bar {
@@ -165,10 +175,10 @@
         let elapsed = Date.now() - start;
         let pct = Math.min((elapsed / duration) * 100, 100);
         progressFill.style.width = pct + '%';
-        if (pct < 100) requestAnimationFrame(tick);
+        if (pct < 100) setTimeout(tick, 33);
         else { progressBar.style.display = 'none'; resolve(); }
       }
-      requestAnimationFrame(tick);
+      setTimeout(tick, 33);
     });
   }
 
@@ -177,7 +187,7 @@
     div.className = 'line ' + cls;
     div.textContent = msg;
     consoleEl.appendChild(div);
-    consoleEl.scrollTop = consoleEl.scrollHeight;
+    consoleEl.scrollTo(0, consoleEl.scrollHeight);
   }
 
   async function typeLine(msg, cls = '', delay = 30) {
@@ -186,7 +196,7 @@
       div.className = 'line ' + cls;
       div.textContent = msg.slice(0, i + 1);
       consoleEl.appendChild(div);
-      consoleEl.scrollTop = consoleEl.scrollHeight;
+      consoleEl.scrollTo(0, consoleEl.scrollHeight);
       await sleep(delay);
       if (i < msg.length - 1) consoleEl.removeChild(consoleEl.lastChild);
     }
@@ -248,7 +258,7 @@
 
     let confirmBtn = document.createElement('button');
     confirmBtn.textContent = '确认检测';
-    confirmBtn.style.cssText = 'width:100%;padding:12px;margin-top:8px;font-size:16px;font-weight:bold;border:2px solid #6b3fa0;border-radius:12px;background:#1a1a3a;color:#e0e0e0;cursor:pointer;font-family:inherit;';
+    confirmBtn.style.cssText = 'width:100%;padding:12px;margin-top:8px;font-size:16px;font-weight:bold;border:2px solid #6b3fa0;border-radius:12px;background:#1a1a3a;color:#e0e0e0;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:transparent;';
 
     confirmBtn.onclick = () => {
       let v = input.value.trim();
@@ -343,7 +353,7 @@
 
     let retryBtn = document.createElement('button');
     retryBtn.textContent = '🔄 再来一次';
-    retryBtn.style.cssText = 'width:100%;padding:12px;font-size:16px;font-weight:bold;border:2px solid #a978d9;border-radius:12px;background:#1a1a3a;color:#e0e0e0;cursor:pointer;font-family:inherit;';
+    retryBtn.style.cssText = 'width:100%;padding:12px;font-size:16px;font-weight:bold;border:2px solid #a978d9;border-radius:12px;background:#1a1a3a;color:#e0e0e0;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:transparent;';
     retryBtn.onclick = () => { choice = null; name = null; run(); };
 
     retryDiv.appendChild(retryBtn);
